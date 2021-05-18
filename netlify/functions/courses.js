@@ -55,8 +55,14 @@ exports.handler = async function(event) {
   // get the data from the document
   let courseData = course.data()
 
+  // create an object with the course data to hold the return value from our lambda
+  let returnValue = {
+    courseNumber: courseData.courseNumber,
+    name: courseData.name
+  }
+
   // set a new Array as part of the return value
-  courseData.sections = []
+  returnValue.sections = []
 
   // ask Firebase for the sections corresponding to the Document ID of the course, wait for the response
   let sectionsQuery = await db.collection('sections').where(`courseId`, `==`, courseId).get()
@@ -71,6 +77,9 @@ exports.handler = async function(event) {
 
     // get the data from the section
     let sectionData = sections[i].data()
+    
+    // create an Object to be added to the return value of our lambda
+    let sectionObject = {}
 
     // ask Firebase for the lecturer with the ID provided by the section; hint: read "Retrieve One Document (when you know the Document ID)" in the reference
     let lecturerQuery = await db.collection('lecturers').doc(sectionData.lecturerId).get()
@@ -78,18 +87,62 @@ exports.handler = async function(event) {
     // get the data from the returned document
     let lecturer = lecturerQuery.data()
 
-    // add the lecturer's name to the section's data
-    sectionData.lecturerName = lecturer.name
+    // add the lecturer's name to the section Object
+    sectionObject.lecturerName = lecturer.name
 
-    // add the section data to the courseData
-    courseData.sections.push(sectionData)
+    // add the section Object to the return value
+    returnValue.sections.push(sectionObject)
 
     // 🔥 your code for the reviews/ratings goes here
+
+    // ask Firebase for the reviews with the section ID
+    let reviewQuery = await db.collection('reviews').where(`sectionId`, `==`, sectionId).get()
+
+    // get the revies from the returned document
+    let review = reviewQuery.docs
+
+    // add reviews to sectionObject
+    sectionObject.reviews = []
+
+    // create variable for sum of rating in the section
+    let sectionRatingSum = 0
+
+    // loop through the documents
+    for (let reviewIndex=0; reviewIndex < review.length; reviewIndex++) {
+
+    // get the review data from each documents
+    let review = review[reviewIndex].data()
+
+    // create a review object to be pushed to return value
+    let reviewObject = {}
+
+    // add elements for review object
+    reviewObject.body = review.body
+    reviewObject.rating = review.rating
+
+    // add review object to the section object
+    sectionObject.reviews.push(reviewObject)
+
+    // count each review and rating to the total numbers, calculate average rating
+    sectionRatingSum = sectionRatingSum + review.rating
+    
+    // add number of reviews and average rating to the return value
+    sectionObject.sectionAverageRating = sectionRatingSum/review.length
+    sectionObject.sectionReviewNumber = review.length
+    }
+
+    // create variables for sum of rating across sections, and total number of reviews for the course
+    courseRatingSum = courseRatingSum + sectionRatingSum
+    courseReviewsNum = courseReviewsNum + review.length
+
+    // add number of reviews and average rating to the return value
+    returnValue.courseAverageRating = courseRatingSum/courseReviewsNum
+    returnValue.courseReviewNumber = courseReviewsNum
   }
 
   // return the standard response
   return {
     statusCode: 200,
-    body: JSON.stringify(courseData)
+    body: JSON.stringify(returnValue)
   }
 }
