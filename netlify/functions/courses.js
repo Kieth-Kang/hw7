@@ -99,7 +99,7 @@ exports.handler = async function(event) {
     let reviewQuery = await db.collection('reviews').where(`sectionId`, `==`, sectionId).get()
 
     // get the revies from the returned document
-    let review = reviewQuery.docs
+    let reviews = reviewQuery.docs
 
     // add reviews to sectionObject
     sectionObject.reviews = []
@@ -108,10 +108,10 @@ exports.handler = async function(event) {
     let sectionRatingSum = 0
 
     // loop through the documents
-    for (let reviewIndex=0; reviewIndex < review.length; reviewIndex++) {
+    for (let reviewIndex=0; reviewIndex < reviews.length; reviewIndex++) {
 
     // get the review data from each documents
-    let review = review[reviewIndex].data()
+    let review = reviews[reviewIndex].data()
 
     // create a review object to be pushed to return value
     let reviewObject = {}
@@ -127,13 +127,17 @@ exports.handler = async function(event) {
     sectionRatingSum = sectionRatingSum + review.rating
     
     // add number of reviews and average rating to the return value
-    sectionObject.sectionAverageRating = sectionRatingSum/review.length
-    sectionObject.sectionReviewNumber = review.length
+    sectionObject.sectionAverageRating = sectionRatingSum/reviews.length
+    sectionObject.sectionReviewNumber = reviews.length
     }
+
+    // create variables for sum of rating and review numbers cross sections
+    let courseRatingSum = 0
+    let courseReviewsNum = 0
 
     // create variables for sum of rating across sections, and total number of reviews for the course
     courseRatingSum = courseRatingSum + sectionRatingSum
-    courseReviewsNum = courseReviewsNum + review.length
+    courseReviewsNum = courseReviewsNum + reviews.length
 
     // add number of reviews and average rating to the return value
     returnValue.courseAverageRating = courseRatingSum/courseReviewsNum
